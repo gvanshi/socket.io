@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Socket.IO Chat</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f4; }
+        #chat-container { margin: 50px auto; max-width: 600px; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); }
+        #messages { list-style: none; max-height: 300px; overflow-y: auto; padding: 0; }
+        #messages li { padding: 8px; border-bottom: 1px solid #ddd; }
+        #typing { font-size: 0.9em; color: gray; }
+        #input-container { display: flex; margin-top: 10px; }
+        #message-input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 4px 0 0 4px; }
+        #send-button { background: #007bff; color: white; padding: 10px; border: none; border-radius: 0 4px 4px 0; cursor: pointer; }
+        #send-button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <h3>Socket.IO Chat</h3>
+        <ul id="messages"></ul>
+        <p id="typing"></p>
+        <div id="input-container">
+            <input id="message-input" type="text" placeholder="Type a message" />
+            <button id="send-button">Send</button>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io({ auth: { token: "secure_token_1", username: prompt("Enter your username") } });
+
+        const messages = document.getElementById("messages");
+        const typing = document.getElementById("typing");
+        const input = document.getElementById("message-input");
+        const sendButton = document.getElementById("send-button");
+
+        const room = prompt("Enter room name");
+        socket.emit("joinRoom", room);
+
+        socket.on("loadMessages", (data) => {
+            data.forEach((msg) => addMessage(msg.sender, msg.text, msg.timestamp));
+        });
+
+        socket.on("message", (data) => addMessage(data.sender, data.text, data.timestamp));
+
+        socket.on("typing", (msg) => (typing.textContent = msg));
+        socket.on("stopTyping", () => (typing.textContent = ""));
+
+        input.addEventListener("input", () => socket.emit("typing", room));
+        input.addEventListener("blur", () => socket.emit("stopTyping", room));
+
+        sendButton.addEventListener("click", () => {
+            const text = input.value.trim();
+            if (text) {
+                socket.emit("message", { room, text });
+                addMessage("You", text, new Date().toLocaleTimeString());
+                input.value = "";
+                socket.emit("stopTyping", room);
+            }
+        });
+
+        function addMessage(sender, text, timestamp) {
+            const li = document.createElement("li");
+            li.textContent = `[${timestamp}] ${sender}: ${text}`;
+            messages.appendChild(li);
+            messages.scrollTop = messages.scrollHeight;
+        }
+    </script>
+</body>
+</html>
